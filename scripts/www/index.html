@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>计算器</title>
+    <style>
+        :root {
+            --bg: #f5f0eb;
+            --card-bg: #ffffff;
+            --text: #2c2416;
+            --text-secondary: #6b5e4a;
+            --accent-lose: #e0554a;
+            --accent-lose-hover: #c94a40;
+            --accent-win: #3d9d6f;
+            --accent-win-hover: #348a60;
+            --accent-undo: #5b7db5;
+            --accent-undo-hover: #4c6d9f;
+            --accent-reset: #8c7a6b;
+            --accent-reset-hover: #756558;
+            --border: #e5ddd4;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
+            --radius: 14px;
+            --radius-sm: 10px;
+            --radius-xs: 7px;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .header {
+            text-align: center;
+            padding: 4px 0;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--text);
+            background: linear-gradient(135deg, #c0853c, #8b5e34);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header .subtitle {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .info-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            align-items: center;
+        }
+        .info-row .info-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #faf8f5;
+            padding: 6px 11px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .info-row .info-value {
+            font-weight: 700;
+            color: #c0853c;
+            font-size: 0.85rem;
+        }
+        .info-row .info-value.max-val {
+            color: #e0554a;
+        }
+        .number-list-container {
+            min-height: 48px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding: 4px 0;
+        }
+        .number-list-container.empty::after {
+            content: '列表为空';
+            color: #c4b8a7;
+            font-size: 0.85rem;
+            font-style: italic;
+            letter-spacing: 0.03em;
+        }
+        .number-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 22px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.03em;
+            font-family: var(--font-mono);
+            transition: all 0.2s ease;
+            background: #faf7f2;
+            color: #5c4a2e;
+            border: 2px solid #e8dfd3;
+            position: relative;
+        }
+        .number-tag.is-max {
+            background: #fff5f3;
+            border-color: #f2c4ba;
+            color: #c0392b;
+            box-shadow: 0 0 0 3px rgba(224, 85, 74, 0.08);
+            transform: scale(1.06);
+            z-index: 1;
+        }
+        .number-tag.is-min {
+            background: #f6faf8;
+            border-color: #c4dcd0;
+            color: #2d7d55;
+            box-shadow: 0 0 0 3px rgba(61, 157, 111, 0.07);
+            z-index: 1;
+        }
+        .number-tag.is-both {
+            background: #fff9f5;
+            border-color: #e8c8a0;
+            color: #b8731f;
+            box-shadow: 0 0 0 3px rgba(200, 140, 60, 0.1);
+            transform: scale(1.06);
+            z-index: 1;
+        }
+        .number-tag.entering {
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .number-tag.removing {
+            animation: popOut 0.25s ease-in forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            70% { transform: scale(1.12); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes popOut {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.4); opacity: 0; }
+        }
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .stat-box {
+            flex: 1;
+            min-width: 90px;
+            background: #faf8f5;
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all var(--transition);
+        }
+        .stat-box.pnl {
+            border-color: #e8dfd3;
+        }
+        .stat-box.pnl.positive {
+            border-color: #c4dcd0;
+            background: #f6faf8;
+        }
+        .stat-box.pnl.negative {
+            border-color: #f2c4ba;
+            background: #fff5f3;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            margin-bottom: 3px;
+        }
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            letter-spacing: 0.02em;
+            transition: all var(--transition);
+        }
+        .stat-value.pnl-positive {
+            color: #3d9d6f;
+        }
+        .stat-value.pnl-negative {
+            color: #e0554a;
+        }
+        .stat-value.pnl-zero {
+            color: #8c7a6b;
+        }
+        .stat-value.invest-val {
+            color: #5c4a2e;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .input-group label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text);
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+        .input-group input {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px 14px;
+            border: 2px solid #e5ddd4;
+            border-radius: var(--radius-xs);
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            text-align: center;
+            background: #faf8f5;
+            color: var(--text);
+            transition: all var(--transition);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .input-group input:focus {
+            border-color: #c0853c;
+            box-shadow: 0 0 0 4px rgba(192, 133, 60, 0.1);
+            background: #fff;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 15px 10px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: transform 0.1s ease, background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+            font-family: inherit;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-lose {
+            background: var(--accent-lose);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(224, 85, 74, 0.3);
+        }
+        .btn-lose:active {
+            background: var(--accent-lose-hover);
+        }
+        .btn-win {
+            background: var(--accent-win);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(61, 157, 111, 0.3);
+        }
+        .btn-win:active {
+            background: var(--accent-win-hover);
+        }
+        .btn-undo {
+            background: var(--accent-undo);
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(91, 125, 181, 0.25);
+            font-size: 0.9rem;
+            padding: 12px 10px;
+        }
+        .btn-undo:active {
+            background: var(--accent-undo-hover);
+        }
+        .btn-reset {
+            background: #fff;
+            color: var(--accent-reset);
+            border: 2px solid #d5ccc0;
+            box-shadow: none;
+            font-size: 0.9rem;
+            padding: 12px 10px;
+        }
+        .btn-reset:active {
+            background: #f5f0eb;
+            border-color: #b8a794;
+            color: #5c4a2e;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: #2c2416;
+            color: #fff;
+            padding: 11px 22px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            letter-spacing: 0.04em;
+            z-index: 1000;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        @media (max-width: 380px) {
+            .container { gap: 10px; }
+            .card { padding: 12px 14px; }
+            .btn { padding: 13px 8px; font-size: 0.95rem; }
+            .btn-undo, .btn-reset { padding: 10px 8px; font-size: 0.82rem; }
+            .stat-value { font-size: 1.2rem; }
+            .number-tag { min-width: 32px; height: 31px; padding: 0 8px; font-size: 0.85rem; border-radius: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><img src="logo.png" alt="logo" style="width: 32px; height: 32px; vertical-align: middle; margin-right: 8px;">计算器</h1>
+            <p class="subtitle">策略追踪·盈亏追踪</p>
+        </div>
+        <div class="card" id="infoCard">
+            <div class="info-row">
+                <span class="info-item">倍率: <span class="info-value" id="infoMultiple">10</span></span>
+                <span class="info-item">当前组数: <span class="info-value" id="infoAddNum">5</span></span>
+                <span class="info-item">最大数值: <span class="info-value max-val" id="infoMaxVal">7</span></span>
+            </div>
+        </div>
+        <div class="card" id="listCard">
+            <div class="number-list-container" id="numberList"></div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-box pnl" id="pnlBox">
+                <div class="stat-label">📊 盈亏</div>
+                <div class="stat-value pnl-zero" id="pnlValue">0</div>
+            </div>
+            <div class="stat-box invest" id="investBox">
+                <div class="stat-label">💰 本次投入</div>
+                <div class="stat-value invest-val" id="investValue">0</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="input-group">
+                <label for="multipleInput">🔢 倍数</label>
+                <input type="number" id="multipleInput" value="10" min="1" max="9999" step="1" inputmode="numeric">
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-lose" id="btnLose">✓ 赢</button>
+            <button class="btn btn-win" id="btnWin">✕ 亏</button>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-undo" id="btnUndo">↩ 撤销</button>
+            <button class="btn btn-reset" id="btnReset">⟳ 重置</button>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script>
+        (function(){
+            // ----- 初始配置 -------------------------------------------------
+            const INIT_NUMBERS = [3, 4, 5, 6, 7];
+            const INIT_ADD_STEPS = [5,5,5,8,8,8,13,13,13];
+            
+            // 辅助：斐波那契
+            function fib(n) {
+                if (n <= 1) return n;
+                let a = 0, b = 1;
+                for (let i = 2; i <= n; i++) {
+                    [a, b] = [b, a + b];
+                }
+                return b;
+            }
+
+            // ---------- 核心状态（无冗余数组，无历史扫描）----------------------
+            let state = {
+                // 当前数字列表
+                numbers: [...INIT_NUMBERS],
+                // 以下用于 addNum 的递推
+                addNumSteps: [...INIT_ADD_STEPS],   // 预置步骤队列
+                fibCycleCount: -1,                  // 用于当预置队列用尽后生成斐波那契
+                // 记录“是否曾经赢过”（原 clickKuiList 的优化，只需一个布尔值）
+                hasEverWon: false,
+                // 辅助值：上次输时记录的最大历史值（原 removeMaxNum / allList 合并）
+                pendingMaxHistory: 0,
+                // 当前 addNum（组数差值）
+                currentAddNum: 0,
+                // 倍率、总盈亏
+                multiple: 10,
+                totalPNL: 0,
+                // 历史记录（浅拷贝状态必要字段，避免深拷贝大数组）
+                history: []
+            };
+
+            // 辅助函数：获取当前列表最大/最小值
+            function getMax(arr) { return arr.length ? Math.max(...arr) : null; }
+            function getMin(arr) { return arr.length ? Math.min(...arr) : null; }
+
+            // 计算当前“本次投入”
+            function calcInvest() {
+                const arr = state.numbers;
+                if (arr.length === 0) return 0;
+                const maxVal = getMax(arr);
+                const minVal = getMin(arr);
+                const mul = state.multiple;
+                if (arr.length === 1) {
+                    const v = arr[0];
+                    return state.hasEverWon ? (v + state.currentAddNum) * mul : v * mul;
+                } else {
+                    return state.hasEverWon ? (maxVal + minVal + state.currentAddNum) * mul : (maxVal + minVal) * mul;
+                }
+            }
+
+            // 获取下个 addNum (组数)
+            function getNextAddNum() {
+                if (state.addNumSteps.length > 0) {
+                    return state.addNumSteps.shift();
+                } else {
+                    state.fibCycleCount++;
+                    const idx = Math.floor(state.fibCycleCount / 3) + 8;
+                    return fib(idx);
+                }
+            }
+
+            // ---------- 核心操作（赢/亏）完全重写，避免任何不必要的数组扫描 ----------
+            function doWin() {
+                if (state.numbers.length === 0) {
+                    showToast('列表为空，无法操作');
+                    return false;
+                }
+                // 记录历史 (轻量快照)
+                pushHistory();
+                
+                // 当前投入额
+                const invest = calcInvest();
+                // 盈亏: 赢则减少总额 (原逻辑: total -= invest)
+                state.totalPNL -= invest;
+                
+                // 标记曾经赢过（非常重要，原逻辑 depends on includes(true)）
+                state.hasEverWon = true;
+                
+                // 获取当前最大值（用于生成新数字）
+                const curMax = getMax(state.numbers);
+                // 决定基数: 若上次输记录了 pendingMaxHistory 则用其，否则用 curMax
+                const base = state.pendingMaxHistory !== 0 ? state.pendingMaxHistory : curMax;
+                // 获得新的 addNum
+                const newAdd = getNextAddNum();
+                state.currentAddNum = newAdd;
+                const newNumber = base + newAdd;
+                
+                // 将新数字加入列表
+                state.numbers.push(newNumber);
+                // 重置 pendingMaxHistory（每次赢后清空）
+                state.pendingMaxHistory = 0;
+                
+                // 刷新UI（添加动画）
+                refreshUI({ entering: newNumber });
+                return true;
+            }
+            
+            function doLose() {
+                if (state.numbers.length === 0) {
+                    showToast('列表为空，无法操作');
+                    return false;
+                }
+                pushHistory();
+                
+                const invest = calcInvest();
+                // 亏: 增加总盈亏 (原逻辑: total += invest)
+                state.totalPNL += invest;
+                
+                // 获取当前最大最小值
+                const maxVal = getMax(state.numbers);
+                const minVal = getMin(state.numbers);
+                // 记录 pendingMaxHistory (原 allList 的最终最大值，由于我们只需要记录上次移除的最大数值)
+                // 原逻辑：state.removeMaxNum = getMax(state.allList) -> 本质就是记录整个生命周期中出现过的最大值
+                // 我们用一个变量保存当前出现的最大值（动态更新）
+                const globalMax = Math.max(...state.numbers, state.pendingMaxHistory);
+                state.pendingMaxHistory = globalMax;
+                
+                // 移除最大值和最小值（若最大最小相同则只移除一个）
+                const newNumbers = [...state.numbers];
+                const maxIdx = newNumbers.indexOf(maxVal);
+                if (maxIdx !== -1) newNumbers.splice(maxIdx, 1);
+                if (maxVal !== minVal) {
+                    const minIdx = newNumbers.indexOf(minVal);
+                    if (minIdx !== -1) newNumbers.splice(minIdx, 1);
+                }
+                state.numbers = newNumbers;
+                
+                // 刷新UI（移除动画标注）
+                refreshUI({ removing: [maxVal, ...(maxVal !== minVal ? [minVal] : [])] });
+                return true;
+            }
+            
+            // ---------- 历史管理（轻量存储，限制深度）-----------------------------
+            function pushHistory() {
+                // 保存当前状态的简版快照（避免深拷贝整个history数组）
+                const snapshot = {
+                    numbers: [...state.numbers],
+                    addNumSteps: [...state.addNumSteps],
+                    fibCycleCount: state.fibCycleCount,
+                    hasEverWon: state.hasEverWon,
+                    pendingMaxHistory: state.pendingMaxHistory,
+                    currentAddNum: state.currentAddNum,
+                    multiple: state.multiple,
+                    totalPNL: state.totalPNL
+                };
+                state.history.push(snapshot);
+                // 限制历史最多40条，彻底防止无限增长
+                if (state.history.length > 40) {
+                    state.history.shift();
+                }
+            }
+            
+            function undo() {
+                if (state.history.length === 0) {
+                    showToast('没有可以撤销的记录');
+                    return;
+                }
+                const prev = state.history.pop();
+                state.numbers = prev.numbers;
+                state.addNumSteps = prev.addNumSteps;
+                state.fibCycleCount = prev.fibCycleCount;
+                state.hasEverWon = prev.hasEverWon;
+                state.pendingMaxHistory = prev.pendingMaxHistory;
+                state.currentAddNum = prev.currentAddNum;
+                state.multiple = prev.multiple;
+                state.totalPNL = prev.totalPNL;
+                // 同步输入框倍率
+                document.getElementById('multipleInput').value = state.multiple;
+                refreshUI();
+                showToast('已撤销');
+            }
+            
+            function reset() {
+                const currentMultiple = state.multiple;
+                state = {
+                    numbers: [...INIT_NUMBERS],
+                    addNumSteps: [...INIT_ADD_STEPS],
+                    fibCycleCount: -1,
+                    hasEverWon: false,
+                    pendingMaxHistory: 0,
+                    currentAddNum: 0,
+                    multiple: currentMultiple,
+                    totalPNL: 0,
+                    history: []
+                };
+                document.getElementById('multipleInput').value = currentMultiple;
+                refreshUI();
+                showToast('重置完成');
+            }
+            
+            // ---------- UI 渲染（高性能，仅必要的DOM操作）---------------------
+            let removeTimer = null;
+            function refreshUI(options = {}) {
+                // 清除之前的移除动画定时器，避免堆积
+                if (removeTimer) {
+                    clearTimeout(removeTimer);
+                    removeTimer = null;
+                }
+                
+                // 更新顶部信息栏
+                document.getElementById('infoMultiple').innerText = state.multiple;
+                const displayAddNum = state.currentAddNum === 0 ? 5 : state.currentAddNum;
+                document.getElementById('infoAddNum').innerText = displayAddNum;
+                const maxNum = getMax(state.numbers);
+                document.getElementById('infoMaxVal').innerText = maxNum !== null ? maxNum : '无';
+                
+                // 更新盈亏显示
+                const pnlValue = state.totalPNL;
+                const pnlSpan = document.getElementById('pnlValue');
+                const pnlBox = document.getElementById('pnlBox');
+                pnlSpan.innerText = pnlValue;
+                pnlSpan.className = 'stat-value';
+                pnlBox.classList.remove('positive', 'negative');
+                if (pnlValue > 0) {
+                    pnlSpan.classList.add('pnl-negative');
+                    pnlBox.classList.add('negative');
+                } else if (pnlValue < 0) {
+                    pnlSpan.classList.add('pnl-positive');
+                    pnlBox.classList.add('positive');
+                } else {
+                    pnlSpan.classList.add('pnl-zero');
+                }
+                
+                // 计算本次投入并显示
+                const investVal = calcInvest();
+                document.getElementById('investValue').innerText = investVal;
+                
+                // 更新数字列表（带可选的进出动画）
+                renderNumberList(options.entering, options.removing);
+                
+                // 按钮禁用状态
+                const empty = state.numbers.length === 0;
+                document.getElementById('btnLose').disabled = empty;
+                document.getElementById('btnWin').disabled = empty;
+                document.getElementById('btnUndo').disabled = state.history.length === 0;
+                
+                // 如果存在移除动画，延时再次重绘以清除动画类（但数据已正确）
+                if (options.removing && options.removing.length > 0) {
+                    removeTimer = setTimeout(() => {
+                        // 无参调用仅刷新布局，不会再触发动画类
+                        renderNumberList();
+                        removeTimer = null;
+                    }, 260);
+                }
+            }
+            
+            function renderNumberList(entering = null, removingArr = null) {
+                const container = document.getElementById('numberList');
+                container.innerHTML = '';
+                const numbers = state.numbers;
+                if (numbers.length === 0) {
+                    container.classList.add('empty');
+                    return;
+                }
+                container.classList.remove('empty');
+                const maxVal = getMax(numbers);
+                const minVal = getMin(numbers);
+                for (let i = 0; i < numbers.length; i++) {
+                    const num = numbers[i];
+                    const tag = document.createElement('span');
+                    tag.className = 'number-tag';
+                    tag.textContent = num;
+                    const isMax = num === maxVal;
+                    const isMin = num === minVal;
+                    if (isMax && isMin && numbers.length > 1) tag.classList.add('is-both');
+                    else if (isMax && numbers.length > 1) tag.classList.add('is-max');
+                    else if (isMin && numbers.length > 1) tag.classList.add('is-min');
+                    
+                    // 入场动画（最后一个新增的元素）
+                    if (entering !== null && i === numbers.length - 1 && num === entering) {
+                        tag.classList.add('entering');
+                    }
+                    // 退场动画
+                    if (removingArr && removingArr.includes(num)) {
+                        tag.classList.add('removing');
+                    }
+                    container.appendChild(tag);
+                }
+            }
+            
+            // ---------- 倍数输入优化（只更新投入值，绝不重绘整个列表）--------------
+            function updateMultipleFromInput() {
+                let raw = document.getElementById('multipleInput').value.trim();
+                if (raw === '') return;
+                let val = Number(raw);
+                if (isNaN(val) || val < 1) {
+                    val = 1;
+                    document.getElementById('multipleInput').value = 1;
+                }
+                if (state.multiple !== val) {
+                    state.multiple = val;
+                    // 只刷新依赖倍率的投入显示，数字列表无需重绘（性能关键）
+                    const investVal = calcInvest();
+                    document.getElementById('investValue').innerText = investVal;
+                    document.getElementById('infoMultiple').innerText = state.multiple;
+                    // 盈亏符号可能不变，但无需操作列表
+                }
+            }
+            
+            function blurMultiple() {
+                let raw = document.getElementById('multipleInput').value.trim();
+                if (raw === '') {
+                    document.getElementById('multipleInput').value = 1;
+                    state.multiple = 1;
+                } else {
+                    let val = Number(raw);
+                    if (isNaN(val) || val < 1) {
+                        document.getElementById('multipleInput').value = 1;
+                        state.multiple = 1;
+                    } else {
+                        state.multiple = val;
+                    }
+                }
+                const investVal = calcInvest();
+                document.getElementById('investValue').innerText = investVal;
+                document.getElementById('infoMultiple').innerText = state.multiple;
+            }
+            
+            // ---------- Toast ----------
+            let toastTimeout = null;
+            function showToast(msg, duration = 1800) {
+                const toast = document.getElementById('toast');
+                toast.textContent = msg;
+                toast.classList.add('show');
+                if (toastTimeout) clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => toast.classList.remove('show'), duration);
+            }
+            
+            // ---------- 绑定事件 ----------
+            function bindEvents() {
+                document.getElementById('btnWin').addEventListener('click', () => {
+                    doWin();
+                });
+                document.getElementById('btnLose').addEventListener('click', () => {
+                    doLose();
+                });
+                document.getElementById('btnReset').addEventListener('click', () => {
+                    reset();
+                });
+                document.getElementById('btnUndo').addEventListener('click', () => {
+                    undo();
+                });
+                const multipleInput = document.getElementById('multipleInput');
+                multipleInput.addEventListener('input', updateMultipleFromInput);
+                multipleInput.addEventListener('blur', blurMultiple);
+            }
+            
+            // 启动
+            bindEvents();
+            refreshUI();
+        })();
+    </script>
+</body>
+</html>
